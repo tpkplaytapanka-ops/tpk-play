@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BroadcastConfig {
+  id          String   @id @default(cuid())
+  channel     String   @unique // "main", "tv1", "tv2", "radio", "music"
+  sourceType  String   @default("url") // "phone", "url", "youtube", "facebook", "twitch", "instagram", "hls", "audio"
+  sourceUrl   String?
+  isActive    Boolean  @default(false)
+  displayName String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String // bcrypt hashed
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+model RaffleCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  prize      String
+  isRedeemed Boolean   @default(false)
+  redeemedBy String?
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+}
+
+model StreamViewer {
+  id        String    @id @default(cuid())
+  sessionId String    @unique
+  channel   String
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+}

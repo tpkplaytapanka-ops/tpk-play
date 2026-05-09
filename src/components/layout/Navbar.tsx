@@ -1,0 +1,79 @@
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+import { Menu, X, Tv, Radio, Music, Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+export default function Navbar() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const navLinks = [
+    { href: '/tv/canal-en-vivo', label: 'Canal en Vivo', icon: Play },
+    { href: '/tv/canal-1', label: 'Señal Colombia', icon: Tv },
+    { href: '/tv/canal-2', label: 'Citytv', icon: Tv },
+    { href: '/radio', label: 'Radio', icon: Radio },
+    { href: '/musica', label: 'Música', icon: Music },
+  ]
+
+  return (
+    <nav className="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-red-600 rounded-lg flex items-center justify-center group-hover:bg-red-500 transition-colors">
+              <Play className="w-5 h-5 text-white fill-white" />
+            </div>
+            <span className="text-xl font-black text-white tracking-tight">
+              TPK <span className="text-red-500">PLAY</span>
+            </span>
+          </Link>
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <link.icon className="w-4 h-4" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden text-zinc-300 hover:text-white"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden border-t border-zinc-800 bg-zinc-950">
+          <div className="px-4 py-3 space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <link.icon className="w-5 h-5" />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </nav>
+  )
+}
