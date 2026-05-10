@@ -12,11 +12,15 @@ datasource db {
 
 model BroadcastConfig {
   id          String   @id @default(cuid())
-  channel     String   @unique // "main", "tv1", "tv2", "radio", "music"
+  channel     String   @unique // "main", "tv1", "tv2", "tv3", "tv4", "radio", "radio2", "radio3", "music"
   sourceType  String   @default("url") // "phone", "url", "youtube", "facebook", "twitch", "instagram", "hls", "audio"
   sourceUrl   String?
   isActive    Boolean  @default(false)
   displayName String?
+  category    String   @default("tv") // "tv", "radio", "music"
+  description String?
+  thumbnailUrl String?
+  sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }

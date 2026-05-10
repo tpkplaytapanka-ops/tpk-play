@@ -8,13 +8,17 @@ export async function GET() {
   try {
     await ensureDefaultBroadcastConfigs()
     const configs = await db.broadcastConfig.findMany({
-      orderBy: { channel: 'asc' },
+      orderBy: { sortOrder: 'asc' },
       select: {
         channel: true,
         sourceType: true,
         sourceUrl: true,
         isActive: true,
         displayName: true,
+        category: true,
+        description: true,
+        thumbnailUrl: true,
+        sortOrder: true,
       },
     })
     return NextResponse.json(configs)
@@ -35,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { channel, sourceType, sourceUrl, isActive, displayName } = body
+    const { channel, sourceType, sourceUrl, isActive, displayName, category, description, thumbnailUrl, sortOrder } = body
 
     if (!channel) {
       return NextResponse.json(
@@ -51,6 +55,10 @@ export async function POST(request: Request) {
         ...(sourceUrl !== undefined && { sourceUrl }),
         ...(isActive !== undefined && { isActive }),
         ...(displayName !== undefined && { displayName }),
+        ...(category !== undefined && { category }),
+        ...(description !== undefined && { description }),
+        ...(thumbnailUrl !== undefined && { thumbnailUrl }),
+        ...(sortOrder !== undefined && { sortOrder }),
       },
       create: {
         channel,
@@ -58,6 +66,10 @@ export async function POST(request: Request) {
         sourceUrl: sourceUrl || null,
         isActive: isActive ?? false,
         displayName: displayName || null,
+        category: category || 'tv',
+        description: description || null,
+        thumbnailUrl: thumbnailUrl || null,
+        sortOrder: sortOrder ?? 0,
       },
     })
 
@@ -67,7 +79,7 @@ export async function POST(request: Request) {
     return NextResponse.json(config)
   } catch {
     return NextResponse.json(
-      { error: 'Error al guardar configuración' },
+      { error: 'Error al guardar configuracion' },
       { status: 500 }
     )
   }
@@ -82,7 +94,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { channel, sourceType, sourceUrl, isActive, displayName } = body
+    const { channel, sourceType, sourceUrl, isActive, displayName, category, description, thumbnailUrl, sortOrder } = body
 
     if (!channel) {
       return NextResponse.json(
@@ -94,7 +106,7 @@ export async function PUT(request: Request) {
     const existing = await db.broadcastConfig.findUnique({ where: { channel } })
     if (!existing) {
       return NextResponse.json(
-        { error: 'Configuración no encontrada' },
+        { error: 'Configuracion no encontrada' },
         { status: 404 }
       )
     }
@@ -106,13 +118,17 @@ export async function PUT(request: Request) {
         ...(sourceUrl !== undefined && { sourceUrl }),
         ...(isActive !== undefined && { isActive }),
         ...(displayName !== undefined && { displayName }),
+        ...(category !== undefined && { category }),
+        ...(description !== undefined && { description }),
+        ...(thumbnailUrl !== undefined && { thumbnailUrl }),
+        ...(sortOrder !== undefined && { sortOrder }),
       },
     })
 
     return NextResponse.json(config)
   } catch {
     return NextResponse.json(
-      { error: 'Error al actualizar configuración' },
+      { error: 'Error al actualizar configuracion' },
       { status: 500 }
     )
   }
@@ -141,10 +157,10 @@ export async function DELETE(request: Request) {
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     await logAudit({ adminId: admin.id, action: 'delete_broadcast', resource: 'BroadcastConfig', details: { channel }, ipAddress: ip })
 
-    return NextResponse.json({ message: 'Configuración eliminada' })
+    return NextResponse.json({ message: 'Configuracion eliminada' })
   } catch {
     return NextResponse.json(
-      { error: 'Error al eliminar configuración' },
+      { error: 'Error al eliminar configuracion' },
       { status: 500 }
     )
   }

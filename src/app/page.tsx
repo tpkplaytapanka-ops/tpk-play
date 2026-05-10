@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
-import { Play, Tv, Radio, Music, ChevronRight, Zap, Smartphone, Eye } from 'lucide-react'
+import { Play, Tv, Radio, Music, ChevronRight, Zap, Smartphone, Eye, Headphones, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,38 +15,49 @@ interface ChannelConfig {
   sourceUrl: string | null
   isActive: boolean
   displayName: string | null
+  category: string
+  description: string | null
+  thumbnailUrl: string | null
+  sortOrder: number
 }
 
 const iconMap: Record<string, React.ElementType> = {
   main: Zap,
   tv1: Tv,
   tv2: Tv,
+  tv3: Tv,
+  tv4: Tv,
   radio: Radio,
+  radio2: Radio,
+  radio3: Radio,
   music: Music,
+  music2: Headphones,
 }
 
 const colorMap: Record<string, { gradient: string; bg: string; text: string }> = {
   main: { gradient: 'from-red-600 to-red-800', bg: 'bg-red-600/20', text: 'text-red-500' },
   tv1: { gradient: 'from-emerald-600 to-emerald-800', bg: 'bg-emerald-600/20', text: 'text-emerald-500' },
   tv2: { gradient: 'from-blue-600 to-blue-800', bg: 'bg-blue-600/20', text: 'text-blue-500' },
+  tv3: { gradient: 'from-amber-600 to-amber-800', bg: 'bg-amber-600/20', text: 'text-amber-500' },
+  tv4: { gradient: 'from-cyan-600 to-cyan-800', bg: 'bg-cyan-600/20', text: 'text-cyan-500' },
   radio: { gradient: 'from-purple-600 to-purple-800', bg: 'bg-purple-600/20', text: 'text-purple-500' },
+  radio2: { gradient: 'from-indigo-600 to-indigo-800', bg: 'bg-indigo-600/20', text: 'text-indigo-500' },
+  radio3: { gradient: 'from-yellow-600 to-yellow-800', bg: 'bg-yellow-600/20', text: 'text-yellow-500' },
   music: { gradient: 'from-orange-600 to-orange-800', bg: 'bg-orange-600/20', text: 'text-orange-500' },
+  music2: { gradient: 'from-pink-600 to-pink-800', bg: 'bg-pink-600/20', text: 'text-pink-500' },
 }
 
 const hrefMap: Record<string, string> = {
   main: '/tv/canal-en-vivo',
   tv1: '/tv/canal-1',
   tv2: '/tv/canal-2',
+  tv3: '/tv/canal-3',
+  tv4: '/tv/canal-4',
   radio: '/radio',
+  radio2: '/radio',
+  radio3: '/radio',
   music: '/musica',
-}
-
-const descriptionMap: Record<string, string> = {
-  main: 'Transmisión principal en directo',
-  tv1: 'Canal público nacional',
-  tv2: 'Canal de televisión bogotano',
-  radio: 'Radio en vivo',
-  music: 'Música en vivo',
+  music2: '/musica',
 }
 
 export default function HomePage() {
@@ -73,6 +84,9 @@ export default function HomePage() {
   }, [])
 
   const activeCount = channels.filter(c => c.isActive).length
+  const tvChannels = channels.filter(c => c.category === 'tv')
+  const radioChannels = channels.filter(c => c.category === 'radio')
+  const musicChannels = channels.filter(c => c.category === 'music')
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -99,20 +113,26 @@ export default function HomePage() {
             </h1>
 
             <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto">
-              Tu plataforma de streaming y entretenimiento. TV en vivo, radio, música y mucho más, directo desde Colombia.
+              Tu plataforma de streaming y entretenimiento. TV en vivo, radio, musica y transmision desde tu celular, directo desde Colombia.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/tv/canal-en-vivo">
+              <Link href="/tv">
                 <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white text-lg px-8 gap-2 h-14">
+                  <LayoutGrid className="w-5 h-5" />
+                  Guia de Canales
+                </Button>
+              </Link>
+              <Link href="/tv/canal-en-vivo">
+                <Button size="lg" variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800 text-lg px-8 gap-2 h-14">
                   <Play className="w-5 h-5 fill-white" />
-                  Ver Canal en Vivo
+                  Canal en Vivo
                 </Button>
               </Link>
               <Link href="/radio">
                 <Button size="lg" variant="outline" className="border-zinc-700 text-white hover:bg-zinc-800 text-lg px-8 gap-2 h-14">
                   <Radio className="w-5 h-5" />
-                  Escuchar Radio
+                  Radio
                 </Button>
               </Link>
             </div>
@@ -120,11 +140,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Channels Grid */}
+      {/* TV Channels */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Canales en Vivo</h2>
-          <span className="text-sm text-zinc-500">{activeCount} de {channels.length} activos</span>
+          <div className="flex items-center gap-3">
+            <Tv className="w-6 h-6 text-emerald-500" />
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Television en Vivo</h2>
+          </div>
+          <Link href="/tv">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white gap-1">
+              Ver todos <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Link>
         </div>
 
         {loading ? (
@@ -135,11 +162,10 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {channels.map((channel) => {
+            {tvChannels.map((channel) => {
               const Icon = iconMap[channel.channel] || Tv
               const colors = colorMap[channel.channel] || colorMap.main
               const href = hrefMap[channel.channel] || `/tv/canal-en-vivo`
-              const description = descriptionMap[channel.channel] || channel.displayName || ''
 
               return (
                 <Link key={channel.channel} href={href}>
@@ -173,18 +199,73 @@ export default function HomePage() {
                           <h3 className="text-lg font-bold text-white group-hover:text-red-400 transition-colors">
                             {channel.displayName || channel.channel}
                           </h3>
-                          <p className="text-sm text-zinc-500 mt-1">{description}</p>
+                          <p className="text-sm text-zinc-500 mt-1">{channel.description || 'Canal de television'}</p>
                         </div>
                         <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-xs">
-                              {channel.sourceType === 'phone' ? '📱 Teléfono' : channel.sourceType.toUpperCase()}
-                            </Badge>
-                          </div>
+                          <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-xs">
+                            {channel.sourceType === 'phone' ? 'Telefono' : channel.sourceType.toUpperCase()}
+                          </Badge>
                           <div className="flex items-center text-sm text-zinc-400 group-hover:text-red-400 transition-colors">
                             <span>{channel.isActive ? 'Ver ahora' : 'Ver canal'}</span>
                             <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                           </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Radio & Music Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Radio className="w-6 h-6 text-purple-500" />
+            <h2 className="text-2xl md:text-3xl font-bold text-white">Radio y Musica</h2>
+          </div>
+          <Link href="/radio">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white gap-1">
+              Ver todos <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-32 bg-zinc-900/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...radioChannels, ...musicChannels].map((channel) => {
+              const Icon = iconMap[channel.channel] || Radio
+              const colors = colorMap[channel.channel] || colorMap.radio
+              const href = hrefMap[channel.channel] || '/radio'
+
+              return (
+                <Link key={channel.channel} href={href}>
+                  <Card className="group bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900 transition-all duration-300 cursor-pointer overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className={`h-1.5 bg-gradient-to-r ${colors.gradient}`} />
+                      <div className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 ${colors.bg} rounded-xl flex items-center justify-center`}>
+                            <Icon className={`w-5 h-5 ${colors.text}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-bold text-white group-hover:text-red-400 transition-colors truncate">
+                              {channel.displayName || channel.channel}
+                            </h3>
+                            <p className="text-xs text-zinc-500 truncate">{channel.description || 'Radio'}</p>
+                          </div>
+                          {channel.isActive && (
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -205,8 +286,8 @@ export default function HomePage() {
                 <Smartphone className="w-6 h-6 text-red-500" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">Transmite desde tu Teléfono</h3>
-                <p className="text-zinc-400 text-sm">Usa la cámara de tu celular para ir en vivo al Canal Principal</p>
+                <h3 className="text-white font-bold text-lg">Transmite desde tu Telefono</h3>
+                <p className="text-zinc-400 text-sm">Usa la camara de tu celular para ir en vivo al Canal Principal</p>
               </div>
             </div>
             <Link href="/stream/broadcast">
@@ -219,38 +300,18 @@ export default function HomePage() {
         </Card>
       </section>
 
-      {/* Mobile Quick Access */}
-      <section className="md:hidden max-w-7xl mx-auto px-4 pb-8">
-        <h3 className="text-lg font-bold text-white mb-4">Acceso Rápido</h3>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {channels.map((ch) => {
-            const Icon = iconMap[ch.channel] || Tv
-            const colors = colorMap[ch.channel] || colorMap.main
-            const href = hrefMap[ch.channel] || `/tv/canal-en-vivo`
-            return (
-              <Link key={ch.channel} href={href}>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 border border-zinc-800 whitespace-nowrap">
-                  <Icon className={`w-4 h-4 ${colors.text}`} />
-                  <span className="text-sm text-zinc-300">{ch.displayName || ch.channel}</span>
-                  {ch.isActive && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
-
       {/* About Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <Card className="bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-zinc-800">
           <CardContent className="p-8 md:p-12">
             <div className="max-w-2xl">
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                Entretenimiento sin límites
+                Entretenimiento sin limites
               </h2>
               <p className="text-zinc-400 text-lg leading-relaxed">
-                TPK PLAY te lleva lo mejor de la televisión colombiana, radio y música en vivo.
-                Disfruta de Señal Colombia, Citytv, Blue Radio, La Kalle y transmití desde tu teléfono, todo desde una sola plataforma.
+                TPK PLAY te lleva lo mejor de la television colombiana, radio y musica en vivo.
+                Disfruta de Senal Colombia, Canal Institucional, Citytv, Blue Radio, Caracol Radio, W Radio,
+                La Kalle, Los 40 y transmiti desde tu telefono, todo desde una sola plataforma.
               </p>
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2 text-sm text-zinc-300">

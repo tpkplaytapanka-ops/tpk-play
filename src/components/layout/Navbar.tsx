@@ -2,18 +2,18 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Menu, X, Tv, Radio, Music, Play } from 'lucide-react'
+import { Menu, X, Tv, Radio, Music, Play, Smartphone, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
 
   const navLinks = [
-    { href: '/tv/canal-en-vivo', label: 'Canal en Vivo', icon: Play },
-    { href: '/tv/canal-1', label: 'Señal Colombia', icon: Tv },
-    { href: '/tv/canal-2', label: 'Citytv', icon: Tv },
+    { href: '/tv', label: 'Guia TV', icon: LayoutGrid },
+    { href: '/tv/canal-en-vivo', label: 'En Vivo', icon: Play },
     { href: '/radio', label: 'Radio', icon: Radio },
-    { href: '/musica', label: 'Música', icon: Music },
+    { href: '/musica', label: 'Musica', icon: Music },
+    { href: '/stream/broadcast', label: 'Transmitir', icon: Smartphone },
   ]
 
   return (
@@ -71,6 +71,32 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <div className="border-t border-zinc-800 mt-2 pt-2">
+              <Link
+                href="/tv/canal-1"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Senal Colombia
+              </Link>
+              <Link
+                href="/tv/canal-2"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Citytv
+              </Link>
+              <Link
+                href="/tv/canal-3"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Canal Institucional
+              </Link>
+            </div>
           </div>
         </div>
       )}

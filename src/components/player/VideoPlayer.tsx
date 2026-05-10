@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Hls from 'hls.js'
-import { Play, Radio } from 'lucide-react'
+import { Play, Radio, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface VideoPlayerProps {
@@ -49,11 +49,16 @@ export default function VideoPlayer({
 
       prevSourceRef.current = url
 
-      if (sourceType === 'hls' || sourceType === 'audio' || url.endsWith('.m3u8')) {
+      const isHls = sourceType === 'hls' || sourceType === 'audio' || url.endsWith('.m3u8')
+
+      if (isHls) {
         if (Hls.isSupported()) {
           const hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 6,
+            liveDurationInfinity: true,
           })
           hlsRef.current = hls
           hls.loadSource(url)
@@ -69,13 +74,14 @@ export default function VideoPlayer({
             if (data.fatal) {
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
+                  // Try to recover from network errors
                   hls.startLoad()
                   break
                 case Hls.ErrorTypes.MEDIA_ERROR:
                   hls.recoverMediaError()
                   break
                 default:
-                  setError('Error fatal en la reproducción')
+                  setError('Error fatal en la reproduccion')
                   destroyPlayer()
                   break
               }
@@ -134,7 +140,7 @@ export default function VideoPlayer({
   if (sourceType === 'youtube' && sourceUrl) {
     const videoId = extractYouTubeId(sourceUrl)
     if (!videoId) {
-      return <div className="text-red-400 p-4">URL de YouTube inválida</div>
+      return <div className="text-red-400 p-4">URL de YouTube invalida</div>
     }
     return (
       <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
@@ -182,7 +188,7 @@ export default function VideoPlayer({
   // Instagram embed (validated)
   if (sourceType === 'instagram' && sourceUrl) {
     if (!isValidEmbedUrl(sourceUrl, 'instagram')) {
-      return <div className="text-red-400 p-4">URL de Instagram inválida</div>
+      return <div className="text-red-400 p-4">URL de Instagram invalida</div>
     }
     return (
       <div className="w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
@@ -197,13 +203,67 @@ export default function VideoPlayer({
     )
   }
 
-  // Phone source - no player needed, just status
+  // Phone source with HLS URL - play the actual stream from MediaMTX
+  if (sourceType === 'phone' && sourceUrl && sourceUrl.endsWith('.m3u8')) {
+    // This is a real phone stream with HLS output from MediaMTX
+    return (
+      <div className="w-full">
+        <div className="w-full aspect-video bg-black rounded-lg overflow-hidden relative">
+          <video
+            ref={videoRef}
+            className="w-full h-full"
+            playsInline
+            controls
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+          />
+          {needsUserAction && !isPlaying && (
+            <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4">
+              <div className="relative">
+                <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center">
+                  <Smartphone className="w-10 h-10 text-red-500" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-xs font-bold">LIVE</span>
+                </div>
+              </div>
+              <p className="text-white text-lg font-semibold">Transmision desde Telefono</p>
+              <p className="text-zinc-400 text-sm">{displayName || 'En vivo ahora'}</p>
+              <Button
+                onClick={handlePlay}
+                size="lg"
+                className="bg-red-600 hover:bg-red-700 text-white text-lg px-8 py-6"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                Ver Transmision en Vivo
+              </Button>
+            </div>
+          )}
+        </div>
+        {error && (
+          <div className="mt-2 p-3 bg-red-900/50 border border-red-700 rounded text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Phone source without HLS URL - placeholder (no media server)
   if (sourceType === 'phone') {
     return (
       <div className="w-full aspect-video bg-zinc-900 rounded-lg flex flex-col items-center justify-center gap-4">
-        <Radio className="w-16 h-16 text-red-500 animate-pulse" />
-        <p className="text-white text-lg font-semibold">Transmisión desde Teléfono</p>
-        <p className="text-zinc-400 text-sm">Esperando señal de transmisión...</p>
+        <div className="relative">
+          <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center">
+            <Radio className="w-10 h-10 text-red-500 animate-pulse" />
+          </div>
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center animate-pulse">
+            <span className="text-white text-[8px] font-bold">LIVE</span>
+          </div>
+        </div>
+        <p className="text-white text-lg font-semibold">Transmision desde Telefono</p>
+        <p className="text-zinc-400 text-sm">Esperando senal de transmision...</p>
+        <p className="text-zinc-600 text-xs mt-2">El servidor de medios no esta configurado</p>
       </div>
     )
   }
@@ -213,7 +273,7 @@ export default function VideoPlayer({
     return (
       <div className="w-full aspect-video bg-zinc-900 rounded-lg flex flex-col items-center justify-center gap-4">
         <Radio className="w-16 h-16 text-zinc-600" />
-        <p className="text-zinc-400 text-lg">Sin señal disponible</p>
+        <p className="text-zinc-400 text-lg">Sin senal disponible</p>
       </div>
     )
   }
@@ -252,7 +312,7 @@ export default function VideoPlayer({
                 size="lg"
                 className="bg-red-600 hover:bg-red-700 text-white text-lg px-8 py-6"
               >
-                Ver {displayName || 'Transmisión'}
+                Ver {displayName || 'Transmision'}
               </Button>
             </div>
           )}

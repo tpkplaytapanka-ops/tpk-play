@@ -1,0 +1,33 @@
+# MediaMTX Configuration for TPK PLAY
+# This file should be placed at /opt/mediamtx/mediamtx.yml on the VPS
+
+# Protocols to enable
+protocols: [rtmp, hls, webrtc]
+
+# RTMP ingest (for OBS/FFmpeg)
+rtmpAddress: :1935
+
+# HLS output (for browser playback)
+hlsAddress: :8888
+hlsAlwaysRemux: true
+hlsVariant: lowLatency
+hlsSegmentCount: 4
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+# WebRTC/WHIP ingest (for browser publishing from phone)
+webrtcAddress: :8889
+
+# Paths configuration
+paths:
+  # Main channel - for phone broadcasting via WHIP
+  main:
+    source: publisher
+    sourceOnDemand: no
+    # Allow only one publisher at a time
+    maxPublishers: 1
+    
+  # Additional channels can be added for multi-stream support
+  tv1:
+    source: publisher
+    sourceOnDemand: no

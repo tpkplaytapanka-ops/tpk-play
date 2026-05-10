@@ -7,22 +7,27 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Camera, CameraOff, AlertTriangle, Smartphone, Video, VideoOff, Send, Settings, SwitchCamera, Mic, MicOff } from 'lucide-react'
+import { WHIPClient } from '@/lib/whip-client'
+import {
+  Camera, CameraOff, AlertTriangle, Smartphone, Video, VideoOff,
+  Send, SwitchCamera, Mic, MicOff, Wifi, WifiOff, Radio
+} from 'lucide-react'
 
-type StreamStep = 'idle' | 'preview' | 'ready' | 'streaming'
+type StreamStep = 'idle' | 'preview' | 'ready' | 'connecting' | 'streaming'
 
 export default function StreamBroadcastPage() {
   const [step, setStep] = useState<StreamStep>('idle')
   const [isIOS, setIsIOS] = useState(false)
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [muted, setMuted] = useState(false)
-  const [streamKey, setStreamKey] = useState('')
   const [viewers, setViewers] = useState(0)
   const [elapsed, setElapsed] = useState(0)
+  const [connectionState, setConnectionState] = useState<string>('disconnected')
+  const [mediaServerAvailable, setMediaServerAvailable] = useState(true)
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const wsRef = useRef<WebSocket | null>(null)
+  const whipRef = useRef<WHIPClient | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Detect iOS
@@ -34,6 +39,17 @@ export default function StreamBroadcastPage() {
     }
   })
 
+  // Check if MediaMTX WHIP endpoint is reachable
+  const checkMediaServer = useCallback(async () => {
+    try {
+      // Try OPTIONS request to WHIP endpoint
+      const res = await fetch('/whip/main', { method: 'OPTIONS' })
+      setMediaServerAvailable(res.ok || res.status === 405) // 405 = Method Not Allowed but server exists
+    } catch {
+      setMediaServerAvailable(false)
+    }
+  }, [])
+
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -42,7 +58,7 @@ export default function StreamBroadcastPage() {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-        audio: !muted,
+        audio: true,
       })
 
       streamRef.current = stream
@@ -51,18 +67,21 @@ export default function StreamBroadcastPage() {
         videoRef.current.play()
       }
       setStep('preview')
-      toast.success('Cámara iniciada correctamente')
+      toast.success('Camara iniciada correctamente')
+
+      // Check media server availability
+      await checkMediaServer()
     } catch (err) {
       const error = err as DOMException
       if (error.name === 'NotAllowedError') {
-        toast.error('Permiso de cámara denegado. Permite el acceso en configuración del navegador.')
+        toast.error('Permiso de camara denegado. Permite el acceso en configuracion del navegador.')
       } else if (error.name === 'NotFoundError') {
-        toast.error('No se encontró una cámara disponible.')
+        toast.error('No se encontro una camara disponible.')
       } else {
-        toast.error('Error al acceder a la cámara: ' + error.message)
+        toast.error('Error al acceder a la camara: ' + error.message)
       }
     }
-  }, [facingMode, muted])
+  }, [facingMode, checkMediaServer])
 
   const flipCamera = useCallback(async () => {
     const newMode = facingMode === 'user' ? 'environment' : 'user'
@@ -73,19 +92,31 @@ export default function StreamBroadcastPage() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: newMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: !muted,
+          audio: true,
         })
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           videoRef.current.play()
         }
-        toast.info(newMode === 'user' ? 'Cámara frontal' : 'Cámara trasera')
+        // If we're streaming, update the peer connection tracks
+        if (whipRef.current && step === 'streaming') {
+          const senders = (whipRef.current as any).pc?.getSenders()
+          if (senders) {
+            stream.getTracks().forEach((track) => {
+              const sender = senders.find((s: RTCRtpSender) => s.track?.kind === track.kind)
+              if (sender) {
+                sender.replaceTrack(track)
+              }
+            })
+          }
+        }
+        toast.info(newMode === 'user' ? 'Camara frontal' : 'Camara trasera')
       } catch {
-        toast.error('No se pudo cambiar la cámara')
+        toast.error('No se pudo cambiar la camara')
       }
     }
-  }, [facingMode, muted])
+  }, [facingMode, step])
 
   const toggleMute = useCallback(() => {
     setMuted(prev => {
@@ -95,7 +126,7 @@ export default function StreamBroadcastPage() {
           track.enabled = !newMuted
         })
       }
-      toast.info(newMuted ? 'Micrófono silenciado' : 'Micrófono activado')
+      toast.info(newMuted ? 'Microfono silenciado' : 'Microfono activado')
       return newMuted
     })
   }, [])
@@ -109,40 +140,45 @@ export default function StreamBroadcastPage() {
       videoRef.current.srcObject = null
     }
     setStep('idle')
-    toast.info('Cámara detenida')
+    toast.info('Camara detenida')
   }, [])
 
   const startStreaming = useCallback(async () => {
     if (!streamRef.current) {
-      toast.error('No hay cámara activa')
+      toast.error('No hay camara activa')
       return
     }
 
+    setStep('connecting')
+    setConnectionState('connecting')
+
     try {
-      // Create MediaRecorder to capture stream as webm chunks
-      const mimeTypes = [
-        'video/webm;codecs=vp8,opus',
-        'video/webm;codecs=vp9,opus',
-        'video/webm',
-        'video/mp4',
-      ]
-      const mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || ''
-
-      const mediaRecorder = new MediaRecorder(streamRef.current, {
-        mimeType: mimeType || undefined,
-        videoBitsPerSecond: 2500000,
+      // Create WHIP client with connection state monitoring
+      const whip = new WHIPClient({
+        onConnectionStateChange: (state) => {
+          setConnectionState(state)
+          if (state === 'failed' || state === 'disconnected') {
+            toast.error('Conexion perdida. Intentando reconectar...')
+          }
+        },
       })
+      whipRef.current = whip
 
-      const chunks: Blob[] = []
+      // Publish stream via WHIP to MediaMTX
+      const whipEndpoint = '/whip/main'
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data)
-        }
+      try {
+        await whip.publish(streamRef.current, whipEndpoint)
+      } catch (whipError) {
+        // If WHIP fails, try fallback mode (no media server)
+        console.warn('WHIP publish failed, falling back to notification-only mode:', whipError)
+        setMediaServerAvailable(false)
       }
 
-      mediaRecorder.start(1000) // Send data every second
-      mediaRecorderRef.current = mediaRecorder
+      // Determine the HLS URL for viewers
+      const hlsUrl = mediaServerAvailable
+        ? `${window.location.origin}/hls/main/index.m3u8`
+        : null
 
       // Notify server that stream is active
       const res = await fetch('/api/broadcast', {
@@ -151,15 +187,14 @@ export default function StreamBroadcastPage() {
         body: JSON.stringify({
           channel: 'main',
           sourceType: 'phone',
-          sourceUrl: 'phone://live',
+          sourceUrl: hlsUrl || 'phone://live',
           isActive: true,
-          displayName: 'Transmisión desde Teléfono',
+          displayName: 'Transmision desde Telefono',
         }),
       })
 
       if (res.ok) {
         setStep('streaming')
-        setStreamKey('tpk-' + Date.now().toString(36))
         setViewers(0)
         setElapsed(0)
 
@@ -168,24 +203,26 @@ export default function StreamBroadcastPage() {
           setElapsed(prev => prev + 1)
         }, 1000)
 
-        toast.success('¡Transmisión iniciada! Los espectadores pueden verte en el Canal en Vivo.')
+        if (mediaServerAvailable) {
+          toast.success('Transmision iniciada! Los espectadores pueden verte en el Canal en Vivo.')
+        } else {
+          toast.warning('Transmision iniciada en modo limitado. El servidor de medios no esta disponible.')
+        }
       } else {
-        toast.error('Error al iniciar la transmisión en el servidor')
+        setStep('ready')
+        toast.error('Error al iniciar la transmision en el servidor')
       }
     } catch {
-      toast.error('Error al iniciar la transmisión')
+      setStep('ready')
+      toast.error('Error al iniciar la transmision. Verifica tu conexion.')
     }
-  }, [])
+  }, [mediaServerAvailable])
 
   const stopStreaming = useCallback(async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-      mediaRecorderRef.current = null
-    }
-
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+    // Stop WHIP client
+    if (whipRef.current) {
+      await whipRef.current.stop()
+      whipRef.current = null
     }
 
     if (timerRef.current) {
@@ -211,10 +248,10 @@ export default function StreamBroadcastPage() {
     }
 
     setStep('preview')
-    setStreamKey('')
     setViewers(0)
     setElapsed(0)
-    toast.info('Transmisión detenida')
+    setConnectionState('disconnected')
+    toast.info('Transmision detenida')
   }, [])
 
   const formatTime = (seconds: number) => {
@@ -232,12 +269,12 @@ export default function StreamBroadcastPage() {
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6">
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-white">Transmitir desde Teléfono</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Transmitir desde Telefono</h1>
             {step === 'streaming' && (
               <Badge className="bg-red-600 animate-pulse">EN VIVO</Badge>
             )}
           </div>
-          <p className="text-zinc-400">Usa la cámara de tu dispositivo para transmitir en vivo al Canal Principal</p>
+          <p className="text-zinc-400">Usa la camara de tu dispositivo para transmitir en vivo al Canal Principal</p>
         </div>
 
         {/* iOS Warning */}
@@ -248,9 +285,48 @@ export default function StreamBroadcastPage() {
               <div>
                 <p className="text-yellow-200 font-medium">Dispositivo iOS detectado</p>
                 <p className="text-yellow-400/80 text-sm mt-1">
-                  Safari en iOS tiene restricciones con la transmisión en vivo. Para mejor experiencia,
+                  Safari en iOS tiene restricciones con la transmision en vivo. Para mejor experiencia,
                   usa un navegador alternativo o Android.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Media Server Status */}
+        {step !== 'idle' && !mediaServerAvailable && (
+          <Card className="bg-orange-900/20 border-orange-600/30 mb-4">
+            <CardContent className="p-4 flex items-start gap-3">
+              <WifiOff className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-orange-200 font-medium">Servidor de medios no disponible</p>
+                <p className="text-orange-400/80 text-sm mt-1">
+                  El servidor de streaming (MediaMTX) no esta configurado. La transmision funcionara en modo
+                  limitado. Contacta al administrador para configurar el servidor de medios.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Connection Quality Indicator */}
+        {step === 'streaming' && (
+          <Card className="bg-zinc-900/50 border-zinc-800 mb-4">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  {connectionState === 'connected' ? (
+                    <><Wifi className="w-4 h-4 text-green-500" /><span className="text-green-400">Conectado</span></>
+                  ) : connectionState === 'connecting' ? (
+                    <><Wifi className="w-4 h-4 text-yellow-500 animate-pulse" /><span className="text-yellow-400">Conectando...</span></>
+                  ) : (
+                    <><WifiOff className="w-4 h-4 text-red-500" /><span className="text-red-400">Desconectado</span></>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-zinc-500">
+                  <span>{facingMode === 'user' ? 'Frontal' : 'Trasera'}</span>
+                  <span>{muted ? 'Sin audio' : 'Con audio'}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -270,7 +346,14 @@ export default function StreamBroadcastPage() {
               {step === 'idle' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                   <Camera className="w-16 h-16 text-zinc-600" />
-                  <p className="text-zinc-500">Presiona &quot;Iniciar Cámara&quot; para comenzar</p>
+                  <p className="text-zinc-500">Presiona &quot;Iniciar Camara&quot; para comenzar</p>
+                </div>
+              )}
+              {step === 'connecting' && (
+                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-4">
+                  <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-white text-lg font-medium">Conectando al servidor...</p>
+                  <p className="text-zinc-400 text-sm">Estableciendo conexion WebRTC</p>
                 </div>
               )}
               {step === 'streaming' && (
@@ -288,7 +371,7 @@ export default function StreamBroadcastPage() {
                   </div>
                   <div className="absolute bottom-4 left-4 flex items-center gap-3">
                     <Badge variant="outline" className="border-zinc-600 text-zinc-300 bg-black/50">
-                      👁 {viewers}
+                      <Wifi className="w-3 h-3 mr-1" /> {connectionState === 'connected' ? 'OK' : '...'}
                     </Badge>
                   </div>
                 </>
@@ -328,8 +411,8 @@ export default function StreamBroadcastPage() {
                   <Camera className={`w-5 h-5 ${step === 'idle' ? 'text-red-500' : 'text-zinc-500'}`} />
                 </div>
                 <div>
-                  <p className="text-white font-medium">1. Iniciar Cámara</p>
-                  <p className="text-zinc-500 text-sm">Permite acceso a cámara y micrófono</p>
+                  <p className="text-white font-medium">1. Iniciar Camara</p>
+                  <p className="text-zinc-500 text-sm">Permite acceso a camara y microfono</p>
                 </div>
               </div>
               {step === 'idle' ? (
@@ -368,25 +451,33 @@ export default function StreamBroadcastPage() {
           </Card>
 
           {/* Step 3: Go Live */}
-          <Card className={`bg-zinc-900 border-zinc-800 transition-opacity ${step !== 'ready' && step !== 'streaming' ? 'opacity-50' : ''}`}>
+          <Card className={`bg-zinc-900 border-zinc-800 transition-opacity ${!['ready', 'streaming', 'connecting'].includes(step) ? 'opacity-50' : ''}`}>
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${step === 'ready' || step === 'streaming' ? 'bg-green-600/20' : 'bg-zinc-700/30'}`}>
-                  <Send className={`w-5 h-5 ${step === 'ready' || step === 'streaming' ? 'text-green-500' : 'text-zinc-500'}`} />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${['ready', 'streaming', 'connecting'].includes(step) ? 'bg-green-600/20' : 'bg-zinc-700/30'}`}>
+                  <Send className={`w-5 h-5 ${['ready', 'streaming', 'connecting'].includes(step) ? 'text-green-500' : 'text-zinc-500'}`} />
                 </div>
                 <div>
                   <p className="text-white font-medium">3. Transmitir en Vivo</p>
                   <p className="text-zinc-500 text-sm">
-                    {step === 'streaming'
-                      ? `En vivo — ${formatTime(elapsed)}`
-                      : 'Comienza a transmitir al Canal Principal'}
+                    {step === 'connecting'
+                      ? 'Conectando al servidor...'
+                      : step === 'streaming'
+                        ? `En vivo - ${formatTime(elapsed)}`
+                        : 'Comienza a transmitir al Canal Principal'}
                   </p>
                 </div>
               </div>
               {step === 'ready' && (
                 <Button onClick={startStreaming} className="bg-green-600 hover:bg-green-700 text-white gap-2">
                   <Video className="w-4 h-4" />
-                  ¡Ir en Vivo!
+                  Ir en Vivo!
+                </Button>
+              )}
+              {step === 'connecting' && (
+                <Button disabled className="bg-yellow-600 text-white gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Conectando
                 </Button>
               )}
               {step === 'streaming' && (
@@ -402,15 +493,31 @@ export default function StreamBroadcastPage() {
         {/* Streaming Info */}
         <Card className="bg-zinc-900/50 border-zinc-800 mt-4">
           <CardContent className="p-4">
-            <h3 className="text-white font-medium mb-2">Información</h3>
+            <h3 className="text-white font-medium mb-2">Informacion</h3>
             <ul className="text-zinc-400 text-sm space-y-1.5">
-              <li>• La cámara no se activa automáticamente por privacidad</li>
-              <li>• Al transmitir, se activa automáticamente el Canal en Vivo</li>
-              <li>• Puedes voltear la cámara (frontal/trasera) en cualquier momento</li>
-              <li>• Se recomienda usar Wi-Fi para una transmisión estable</li>
-              <li>• La calidad depende de tu conexión a internet</li>
-              <li>• Al detener, el canal vuelve a mostrar &quot;Sin señal&quot;</li>
+              <li>La camara no se activa automaticamente por privacidad</li>
+              <li>Al transmitir, se activa automaticamente el Canal en Vivo</li>
+              <li>Puedes voltear la camara (frontal/trasera) en cualquier momento</li>
+              <li>Se recomienda usar Wi-Fi para una transmision estable</li>
+              <li>La calidad depende de tu conexion a internet</li>
+              <li>Al detener, el canal vuelve a mostrar &quot;Sin senal&quot;</li>
+              <li>La transmision usa WebRTC para baja latencia</li>
             </ul>
+          </CardContent>
+        </Card>
+
+        {/* Technical Details (collapsible-style) */}
+        <Card className="bg-zinc-900/30 border-zinc-800 mt-4">
+          <CardContent className="p-4">
+            <h3 className="text-zinc-400 font-medium mb-2 text-sm">Detalles tecnicos</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs text-zinc-500">
+              <div>Protocolo: WebRTC/WHIP</div>
+              <div>Resolucion: 720p</div>
+              <div>Servidor: MediaMTX</div>
+              <div>Salida: HLS (.m3u8)</div>
+              <div>Estado: {connectionState}</div>
+              <div>Media Server: {mediaServerAvailable ? 'Disponible' : 'No disponible'}</div>
+            </div>
           </CardContent>
         </Card>
       </main>

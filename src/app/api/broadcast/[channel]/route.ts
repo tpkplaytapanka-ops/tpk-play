@@ -24,7 +24,7 @@ export async function GET(
     return NextResponse.json(config)
   } catch {
     return NextResponse.json(
-      { error: 'Error al obtener configuración del canal' },
+      { error: 'Error al obtener configuracion del canal' },
       { status: 500 }
     )
   }
