@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
 
@@ -116,8 +117,8 @@ export async function DELETE(request: Request) {
 function generateRandomCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let code = 'TPK-'
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  for (let i = 0; i < 10; i++) {
+    code += chars[crypto.randomInt(0, chars.length)]
   }
   return code
 }

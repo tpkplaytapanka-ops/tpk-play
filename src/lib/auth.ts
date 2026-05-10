@@ -2,7 +2,10 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { db } from '@/lib/db'
 
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'tpk-play-default-secret-change-me'
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error('ADMIN_JWT_SECRET environment variable is required. Set it in your .env file.')
+}
 const JWT_EXPIRES_IN = '24h'
 
 export async function hashPassword(password: string): Promise<string> {

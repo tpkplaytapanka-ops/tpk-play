@@ -179,14 +179,18 @@ export default function VideoPlayer({
     )
   }
 
-  // Instagram embed
+  // Instagram embed (validated)
   if (sourceType === 'instagram' && sourceUrl) {
+    if (!isValidEmbedUrl(sourceUrl, 'instagram')) {
+      return <div className="text-red-400 p-4">URL de Instagram inválida</div>
+    }
     return (
       <div className="w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
         <iframe
           src={sourceUrl}
           className="w-full h-full"
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-presentation"
           title={displayName || 'Instagram Player'}
         />
       </div>
@@ -283,5 +287,22 @@ function extractTwitchChannel(url: string): string {
     return u.pathname.split('/').filter(Boolean).pop() || ''
   } catch {
     return url
+  }
+}
+
+function isValidEmbedUrl(url: string, platform: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const allowedDomains: Record<string, string[]> = {
+      youtube: ['youtube.com', 'www.youtube.com', 'youtu.be'],
+      facebook: ['facebook.com', 'www.facebook.com', 'web.facebook.com'],
+      instagram: ['instagram.com', 'www.instagram.com'],
+      twitch: ['twitch.tv', 'www.twitch.tv', 'player.twitch.tv'],
+    }
+    const domains = allowedDomains[platform]
+    if (!domains) return false
+    return domains.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d))
+  } catch {
+    return false
   }
 }

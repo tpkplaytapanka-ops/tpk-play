@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAdminFromRequest, ensureDefaultBroadcastConfigs } from '@/lib/auth'
 
-// GET - Public: Get all broadcast configs
+// GET - Public: Get all broadcast configs (limited fields)
 export async function GET() {
   try {
     await ensureDefaultBroadcastConfigs()
     const configs = await db.broadcastConfig.findMany({
       orderBy: { channel: 'asc' },
+      select: {
+        channel: true,
+        sourceType: true,
+        sourceUrl: true,
+        isActive: true,
+        displayName: true,
+      },
     })
     return NextResponse.json(configs)
   } catch {

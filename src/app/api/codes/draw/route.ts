@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
+
+// Cryptographically secure Fisher-Yates shuffle
+function secureShuffle<T>(array: T[]): T[] {
+  const arr = [...array]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
 
 // POST - Authenticated: Random draw from unredeemed codes
 export async function POST(request: Request) {
@@ -30,8 +41,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Fisher-Yates shuffle and pick
-    const shuffled = [...unredeemed].sort(() => Math.random() - 0.5)
+    // Cryptographically secure Fisher-Yates shuffle
+    const shuffled = secureShuffle(unredeemed)
     const winners = shuffled.slice(0, Math.min(Number(count), unredeemed.length))
 
     return NextResponse.json({

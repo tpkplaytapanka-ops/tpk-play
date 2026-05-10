@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; frame-src https://www.youtube.com https://www.facebook.com https://player.twitch.tv https://www.instagram.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; media-src 'self' https: blob:; font-src 'self' data:;",
+          },
         ],
       },
     ];
