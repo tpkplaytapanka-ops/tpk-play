@@ -96,6 +96,30 @@ export default function Navbar() {
                 <Tv className="w-4 h-4" />
                 Canal Institucional
               </Link>
+              <Link
+                href="/tv/canal-5"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Teleantioquia
+              </Link>
+              <Link
+                href="/tv/canal-6"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Canal Trece
+              </Link>
+              <Link
+                href="/tv/canal-7"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+              >
+                <Tv className="w-4 h-4" />
+                Noticias Caracol
+              </Link>
             </div>
           </div>
         </div>

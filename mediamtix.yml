@@ -1,0 +1,53 @@
+# MediaMTX Configuration for TPK PLAY
+# Lightweight streaming server for WebRTC/WHIP ingest and HLS output
+
+# General settings
+logLevel: info
+logDestinations: [stdout]
+
+# API settings
+api: yes
+apiAddress: :9997
+
+# RTSP settings (disabled - we only use WHIP/HLS)
+rtsp: no
+
+# RTMP settings (disabled)
+rtmp: no
+
+# HLS settings - output for viewers
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+# WebRTC/WHIP settings - for phone broadcasting
+webrtcAddress: :8889
+webrtcAllowOrigin: "*"
+webrtcICEServers2:
+  - urls: [stun:stun.l.google.com:19302]
+
+# Paths configuration
+paths:
+  # Main channel - phone broadcasting
+  main:
+    source: publisher
+    sourceOnDemand: no
+    overridePublisher: yes
+    # Auto-disable after 30s without publisher
+    runOnDemandCloseAfter: 30s
+
+  # Additional channels for future use
+  tv1:
+    source: publisher
+    sourceOnDemand: no
+    overridePublisher: yes
+    runOnDemandCloseAfter: 30s
+
+  tv2:
+    source: publisher
+    sourceOnDemand: no
+    overridePublisher: yes
+    runOnDemandCloseAfter: 30s

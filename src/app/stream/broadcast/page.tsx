@@ -43,7 +43,7 @@ export default function StreamBroadcastPage() {
   const checkMediaServer = useCallback(async () => {
     try {
       // Try OPTIONS request to WHIP endpoint
-      const res = await fetch('/whip/main', { method: 'OPTIONS' })
+      const res = await fetch('/whip/main/whip', { method: 'OPTIONS' })
       setMediaServerAvailable(res.ok || res.status === 405) // 405 = Method Not Allowed but server exists
     } catch {
       setMediaServerAvailable(false)
@@ -165,7 +165,7 @@ export default function StreamBroadcastPage() {
       whipRef.current = whip
 
       // Publish stream via WHIP to MediaMTX
-      const whipEndpoint = '/whip/main'
+      const whipEndpoint = '/whip/main/whip'
 
       try {
         await whip.publish(streamRef.current, whipEndpoint)
@@ -177,7 +177,7 @@ export default function StreamBroadcastPage() {
 
       // Determine the HLS URL for viewers
       const hlsUrl = mediaServerAvailable
-        ? `${window.location.origin}/hls/main/index.m3u8`
+        ? '/hls/main/index.m3u8'
         : null
 
       // Notify server that stream is active
