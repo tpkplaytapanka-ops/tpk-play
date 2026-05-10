@@ -47,3 +47,14 @@ model StreamViewer {
   joinedAt  DateTime  @default(now())
   leftAt    DateTime?
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String?
+  action    String   // "login", "create_code", "redeem_code", "delete_code", "draw", "update_broadcast", "delete_broadcast", "change_password"
+  resource  String?  // Type of resource affected
+  resourceId String? // ID of affected resource
+  details   String?  // JSON string with additional info
+  ipAddress String?
+  createdAt DateTime @default(now())
+}

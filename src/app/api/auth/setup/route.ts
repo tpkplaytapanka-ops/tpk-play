@@ -1,6 +1,24 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
 import { hashPassword, generateToken, ensureDefaultBroadcastConfigs } from '@/lib/auth'
+
+const setupSchema = z.object({
+  email: z.string().email('Email inválido').max(255, 'Email muy largo'),
+  password: z
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(128, 'La contraseña es muy larga')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'La contraseña debe tener al menos una mayúscula, una minúscula y un número'
+    ),
+  confirmPassword: z.string(),
+  name: z.string().max(100, 'Nombre muy largo').optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
+})
 
 export async function POST(request: Request) {
   try {
@@ -14,21 +32,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, password, name } = body
+    const result = setupSchema.safeParse(body)
 
-    if (!email || !password) {
+    if (!result.success) {
+      const firstError = result.error.errors[0]
       return NextResponse.json(
-        { error: 'Email y contraseña son requeridos' },
+        { error: firstError.message },
         { status: 400 }
       )
     }
 
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 8 caracteres' },
-        { status: 400 }
-      )
-    }
+    const { email, password, name } = result.data
 
     const hashedPassword = await hashPassword(password)
     const admin = await db.adminUser.create({

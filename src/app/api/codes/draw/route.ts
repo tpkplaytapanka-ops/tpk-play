@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // Cryptographically secure Fisher-Yates shuffle
 function secureShuffle<T>(array: T[]): T[] {
@@ -44,6 +45,14 @@ export async function POST(request: Request) {
     // Cryptographically secure Fisher-Yates shuffle
     const shuffled = secureShuffle(unredeemed)
     const winners = shuffled.slice(0, Math.min(Number(count), unredeemed.length))
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    await logAudit({
+      adminId: admin.id,
+      action: 'draw',
+      details: { count: winners.length, totalAvailable: unredeemed.length, winnerCodes: winners.map(w => w.code) },
+      ipAddress: ip,
+    })
 
     return NextResponse.json({
       winners: winners.map(w => ({

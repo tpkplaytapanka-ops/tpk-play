@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // GET - Authenticated: Get all raffle codes
 export async function GET(request: Request) {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const { code, prize, expiresAt, count } = body
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
 
     // Bulk create with generated codes
     if (count && !code) {
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
       }
 
       const created = await db.raffleCode.createMany({ data: codes })
+      await logAudit({ adminId: admin.id, action: 'create_code', resource: 'RaffleCode', details: { count: created.count }, ipAddress: ip })
       return NextResponse.json({ created: created.count, codes: codes.map(c => c.code) })
     }
 
@@ -77,6 +80,7 @@ export async function POST(request: Request) {
       },
     })
 
+    await logAudit({ adminId: admin.id, action: 'create_code', resource: 'RaffleCode', resourceId: raffleCode.id, details: { code, prize }, ipAddress: ip })
     return NextResponse.json(raffleCode)
   } catch {
     return NextResponse.json(
@@ -105,6 +109,10 @@ export async function DELETE(request: Request) {
     }
 
     await db.raffleCode.delete({ where: { id } })
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    await logAudit({ adminId: admin.id, action: 'delete_code', resource: 'RaffleCode', resourceId: id, ipAddress: ip })
+
     return NextResponse.json({ message: 'Código eliminado' })
   } catch {
     return NextResponse.json(

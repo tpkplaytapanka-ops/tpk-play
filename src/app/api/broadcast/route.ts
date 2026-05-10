@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAdminFromRequest, ensureDefaultBroadcastConfigs } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 // GET - Public: Get all broadcast configs (limited fields)
 export async function GET() {
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
         displayName: displayName || null,
       },
     })
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    await logAudit({ adminId: admin.id, action: 'update_broadcast', resource: 'BroadcastConfig', details: { channel }, ipAddress: ip })
 
     return NextResponse.json(config)
   } catch {
@@ -133,6 +137,10 @@ export async function DELETE(request: Request) {
     }
 
     await db.broadcastConfig.delete({ where: { channel } })
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    await logAudit({ adminId: admin.id, action: 'delete_broadcast', resource: 'BroadcastConfig', details: { channel }, ipAddress: ip })
+
     return NextResponse.json({ message: 'Configuración eliminada' })
   } catch {
     return NextResponse.json(

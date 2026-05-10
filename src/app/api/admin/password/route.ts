@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getAdminFromRequest, hashPassword, verifyPassword } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Contraseña actual es requerida').max(128),
+  newPassword: z
+    .string()
+    .min(8, 'La nueva contraseña debe tener al menos 8 caracteres')
+    .max(128)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'La nueva contraseña debe tener al menos una mayúscula, una minúscula y un número'
+    ),
+})
 
 // POST - Authenticated: Change admin password
 export async function POST(request: Request) {
@@ -11,21 +25,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { currentPassword, newPassword } = body
+    const result = changePasswordSchema.safeParse(body)
 
-    if (!currentPassword || !newPassword) {
+    if (!result.success) {
+      const firstError = result.error.errors[0]
       return NextResponse.json(
-        { error: 'Contraseña actual y nueva son requeridas' },
+        { error: firstError.message },
         { status: 400 }
       )
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: 'La nueva contraseña debe tener al menos 8 caracteres' },
-        { status: 400 }
-      )
-    }
+    const { currentPassword, newPassword } = result.data
 
     const adminFull = await db.adminUser.findUnique({ where: { id: admin.id } })
     if (!adminFull) {
@@ -45,6 +55,9 @@ export async function POST(request: Request) {
       where: { id: admin.id },
       data: { password: hashedPassword },
     })
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    await logAudit({ adminId: admin.id, action: 'change_password', ipAddress: ip })
 
     return NextResponse.json({ message: 'Contraseña actualizada exitosamente' })
   } catch {

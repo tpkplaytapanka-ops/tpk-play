@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // POST - Public: Redeem a raffle code (atomic operation to prevent race condition)
 export async function POST(request: Request) {
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
 
     // Use atomic updateMany to prevent race condition / double-spend
     const result = await db.$transaction(async (tx) => {
@@ -46,6 +49,14 @@ export async function POST(request: Request) {
       }
 
       return raffleCode
+    })
+
+    await logAudit({
+      action: 'redeem_code',
+      resource: 'RaffleCode',
+      resourceId: result.id,
+      details: { code, redeemedBy: redeemedBy || 'Anónimo' },
+      ipAddress: ip,
     })
 
     return NextResponse.json({
