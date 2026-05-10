@@ -1,11 +1,11 @@
 module.exports = {
   apps: [{
     name: 'tpk-play',
-    script: 'node',
-    args: 'server.js',
+    script: '.next/standalone/server.js',
     cwd: '/var/www/tpk-play',
     env: {
       NODE_ENV: 'production',
+      HOSTNAME: '0.0.0.0',
       PORT: 3000
     },
     instances: 1,
