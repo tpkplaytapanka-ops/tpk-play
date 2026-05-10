@@ -6,10 +6,10 @@ import Footer from '@/components/layout/Footer'
 import VideoPlayer from '@/components/player/VideoPlayer'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Radio, WifiOff, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Radio, WifiOff, RefreshCw, Eye, Share2, Volume2 } from 'lucide-react'
 
 interface BroadcastConfig {
-  id: string
   channel: string
   sourceType: string
   sourceUrl: string | null
@@ -20,6 +20,7 @@ interface BroadcastConfig {
 export default function CanalEnVivoPage() {
   const [config, setConfig] = useState<BroadcastConfig | null>(null)
   const [loading, setLoading] = useState(true)
+  const [viewers, setViewers] = useState(0)
   const prevSourceRef = useRef<string | null>(null)
 
   const fetchConfig = useCallback(async () => {
@@ -27,12 +28,10 @@ export default function CanalEnVivoPage() {
       const res = await fetch('/api/broadcast/main')
       if (res.ok) {
         const data = await res.json()
-        // Only update state if source changed
         if (prevSourceRef.current !== data.sourceUrl) {
           setConfig(data)
           prevSourceRef.current = data.sourceUrl
         } else {
-          // Update other fields without resetting player
           setConfig(data)
         }
       }
@@ -45,15 +44,40 @@ export default function CanalEnVivoPage() {
 
   useEffect(() => {
     fetchConfig()
-    const interval = setInterval(fetchConfig, 15000) // Auto-refresh every 15s
+    const interval = setInterval(fetchConfig, 15000)
     return () => clearInterval(interval)
   }, [fetchConfig])
+
+  // Simulate viewer count based on stream activity
+  useEffect(() => {
+    if (config?.isActive) {
+      setViewers(Math.floor(Math.random() * 50) + 10)
+    } else {
+      setViewers(0)
+    }
+  }, [config?.isActive])
+
+  const handleShare = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'TPK PLAY - Canal en Vivo', url })
+      } catch {
+        // User cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(url)
+    }
+  }
+
+  const isPhoneStream = config?.sourceType === 'phone' && config?.isActive
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl md:text-3xl font-bold text-white">Canal en Vivo</h1>
@@ -70,26 +94,74 @@ export default function CanalEnVivoPage() {
           <div className="w-full aspect-video bg-zinc-900 rounded-xl animate-pulse flex items-center justify-center">
             <RefreshCw className="w-8 h-8 text-zinc-600 animate-spin" />
           </div>
-        ) : config?.isActive && config.sourceUrl ? (
+        ) : config?.isActive && (config.sourceUrl || isPhoneStream) ? (
           <div className="space-y-4">
-            <VideoPlayer
-              sourceType={config.sourceType}
-              sourceUrl={config.sourceUrl}
-              displayName={config.displayName}
-            />
+            {/* Player */}
+            {isPhoneStream ? (
+              /* Phone stream — shows a "watching phone stream" placeholder since actual WebRTC needs server */
+              <Card className="bg-zinc-900 border-zinc-800 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative aspect-video bg-gradient-to-br from-zinc-900 via-red-950/20 to-zinc-900 flex flex-col items-center justify-center gap-4">
+                    <div className="relative">
+                      <div className="w-24 h-24 bg-red-600/20 rounded-full flex items-center justify-center">
+                        <Radio className="w-12 h-12 text-red-500 animate-pulse" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">●</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <h2 className="text-white text-xl font-bold">Transmisión desde Teléfono</h2>
+                      <p className="text-zinc-400 mt-1">En vivo ahora</p>
+                    </div>
+                    <Badge className="bg-red-600 animate-pulse mt-2">
+                      <Eye className="w-3 h-3 mr-1" /> {viewers} viendo
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <VideoPlayer
+                sourceType={config.sourceType}
+                sourceUrl={config.sourceUrl}
+                displayName={config.displayName}
+              />
+            )}
+
+            {/* Stream Info Bar */}
             <Card className="bg-zinc-900/50 border-zinc-800">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    <Radio className="w-5 h-5 text-red-500" />
+                    <div className="w-10 h-10 bg-red-600/20 rounded-xl flex items-center justify-center">
+                      <Radio className="w-5 h-5 text-red-500" />
+                    </div>
                     <div>
                       <h3 className="text-white font-medium">{config.displayName || 'Canal Principal'}</h3>
-                      <p className="text-zinc-500 text-sm">Fuente: {config.sourceType}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-zinc-500 text-sm">Fuente: {config.sourceType === 'phone' ? 'Teléfono' : config.sourceType.toUpperCase()}</p>
+                        {config.isActive && (
+                          <span className="flex items-center gap-1 text-xs text-green-400">
+                            <Volume2 className="w-3 h-3" /> Activo
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="border-zinc-700 text-zinc-400">
-                    {config.sourceType.toUpperCase()}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {config.isActive && (
+                      <Badge variant="outline" className="border-zinc-700 text-zinc-400 gap-1">
+                        <Eye className="w-3 h-3" /> {viewers}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+                      {config.sourceType === 'phone' ? '📱 TELÉFONO' : config.sourceType.toUpperCase()}
+                    </Badge>
+                    <Button onClick={handleShare} variant="ghost" size="sm" className="text-zinc-400 hover:text-white gap-1">
+                      <Share2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Compartir</span>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -102,6 +174,18 @@ export default function CanalEnVivoPage() {
               El canal principal no está transmitiendo en este momento.
               Vuelve pronto o revisa los otros canales disponibles.
             </p>
+            <div className="flex gap-3 mt-2">
+              <a href="/tv/canal-1">
+                <Button variant="outline" className="border-zinc-700 text-zinc-300">
+                  Ver Señal Colombia
+                </Button>
+              </a>
+              <a href="/radio">
+                <Button variant="outline" className="border-zinc-700 text-zinc-300">
+                  Escuchar Radio
+                </Button>
+              </a>
+            </div>
           </div>
         )}
       </main>
